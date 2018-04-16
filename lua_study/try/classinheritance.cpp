@@ -14,7 +14,10 @@
 
 #include "classinheritance.hpp"
 #include <stdio.h>
+#include <iostream>
+#include <vector>
 
+#include "cobjecttolua.hpp"
 #include "cclassnamespace.hpp"
 #define SOL_CHECK_ARGUMENTS 1
 #include "sol.hpp"
@@ -46,6 +49,10 @@ namespace {
         
     public:
         int a;
+    protected:
+        int pta;
+    private:
+        int pva;
     };
     
     class B : public A {
@@ -55,9 +62,6 @@ namespace {
         }
         
         ~B() {
-            if (NULL != pTT) {
-                delete pTT;
-            }
         }
         
         void only_b_has() {
@@ -103,13 +107,16 @@ namespace {
 }
 
 int class_inheritance() {
+    
     sol::state lua;
     lua.open_libraries();
     
     // c/c++ class to lua
     lua.new_usertype<A>("A"
                         , "call", &A::call
-                        , "only_parent_has", &A::only_parent_has);
+                        , "only_parent_has", &A::only_parent_has
+                        , "a", &A::a
+                        );
     
     lua.new_usertype<B>("B"
                         , "call", &B::call
@@ -119,6 +126,7 @@ int class_inheritance() {
                         );
     
     lua.new_usertype<C>("C"
+                        , "c", &C::c
                         , "call", &C::call
                         , "deal", &C::deal
                         , sol::base_classes, sol::bases<B, A>()
@@ -129,8 +137,84 @@ int class_inheritance() {
                                                   , "show", &CPP_NP::CObjecWithNamespace::Show
                                                   );
     
+#define REFREF
+#ifdef REFREF
+    C* pC = new C();
+    pC->c = 500;
+    pC->call();
+//    lua["pc"] = pC;//std::ref(pC);
+    
+    lua_State* L = luaL_newstate();
+    luaL_openlibs(L);
+    //int rt = script_pushobject(L, (void*)pC);
+    //printf("============ rt = %d ----------\n", rt);
+    lua["pc"] = pC;
+    
+    lua.script("pc = nil");
+    free(pC);
+    pC = NULL;
+#else
+    C pC;
+    pC.c = 500;
+    pC.call();
+    lua["pc"] = pC;//std::ref(pC);//std::make_shared<C>();
+#endif // end REFREF
+    
+    long long a = 100000010, b = 100000001;
+    long long lvalue = a*b;
+    std::cout << lvalue << std::endl;
+    printf("lvalue = %lld\n", lvalue);
+    lua["lll"] = lvalue;
+    
+//    C cu;
+    {
+        C cu;
+        cu.c = 500;
+        lua["cu"] = std::ref(cu);
+    }
+    
+//    lua.script(R"(
+//               snapshot = require "snapshot"
+//               S1 = snapshot()
+//               )");
+    
 #ifdef C_TO_LUA
     lua.script_file("./try/classuseinlua.lua");
+    
+    double ff = lua.get<double>("lll");
+    lvalue = lua.get<long long>("lll");
+    sol::type::function;
+    printf("lvalue = %lld, pC[%p] ff[%lf] \n", lvalue, &pC, ff);
+    
+    printf("----- cu : =====\n");
+//    cu.call();
+    printf("-------------\n");
+    
+#ifdef REFREF
+//    pC->call();
+#else
+    pC.call();
+#endif // end REFREF
+    
+//    sol::object bc = lua["b"];
+//    sol::object bd = lua.get<sol::object>("b");
+//    sol::type::function;
+//    printf("------ type bc[%d], bd[%d] ===\n", bc.get_type(), bd.get_type());
+    
+//    lua.script("b = nil");
+    
+//    lua.script(R"(
+//               print("\n------------------------- lua memory check print ===================")
+//               S2 = snapshot()
+//
+//               for k,v in pairs(S2) do
+//                   if S1[k] == nil then
+//                        print(k,v)
+//                   end
+//               end
+//               print("\n------------------------- lua memory check print end ===================")
+//               )");
+    
 #else
     lua.script_file("./try/luaclassinheritance.lua");
     
@@ -167,12 +251,24 @@ int class_inheritance() {
 //               end
 //               )");
     
+    printf("============ test st ==============\n");
     // do some printing
-    lua["print_some_val"]();
+//    lua["print_some_val"]();
     // 100
     
     sol::table oo = lua["some_table"];
-    oo["add_to_some_val"](oo, 10);
+//    sol::table hh = lua["some_table"]["new"];
+//    printf("---- type hh[%d] ===\n", hh.get_type());
+//    oo["new"](40);
+//    oo["add_to_some_val"](oo, 10);
+//    oo["add_to_some_val"](10);
+    sol::table ct = lua["ts"];
+    
+    lua["some_table"]["add_to_some_val"](oo, 10);
+    lua["some_table"]["add_to_some_val"](ct, 10);
+//    lua["print_some_val"]();
+    
+    printf("============ test en ==============\n");
     
 #endif
     
